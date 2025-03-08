@@ -1,0 +1,31 @@
+kafka:
+  brokers:
+    - host: kafka1
+      port: 9092
+    - host: kafka2
+      port: 9093
+    - host: kafka3
+      port: 9094
+
+  producer_config:
+    acks: 'all'
+    retries: 3
+    max_in_flight_requests_per_connection: 1
+    batch_size: 16384
+    linger_ms: 1
+    buffer_memory: 33554432
+
+  consumer_groups:
+    analysis_group:
+      group_id: 'advanced_analysis_group'
+      auto_offset_reset: 'latest'
+
+  consumer_config:
+    enable_auto_commit: True
+    auto_commit_interval_ms: 1000
+    session_timeout_ms: 30000
+    heartbeat_interval_ms: 10000
+
+  topics:
+    raw_tweets: 'raw_tweets'
+    analyzed_tweets: 'analyzed_tweets' 

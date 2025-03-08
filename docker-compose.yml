@@ -1,0 +1,126 @@
+services:
+  zookeeper:
+    image: 'bitnami/zookeeper:latest'
+    ports:
+      - '2181:2181'
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181", "|", "grep", "imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka1:
+    image: 'bitnami/kafka:latest'
+    ports:
+      - '9092:9092'
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_HOST://:29092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka1:9092,PLAINTEXT_HOST://localhost:29092
+      - KAFKA_BROKER_ID=1
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka2:
+    image: 'bitnami/kafka:latest'
+    ports:
+      - '9093:9093'
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9093,PLAINTEXT_HOST://:29093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      - KAFKA_BROKER_ID=2
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9093 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka3:
+    image: 'bitnami/kafka:latest'
+    ports:
+      - '9094:9094'
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9094,PLAINTEXT_HOST://:29094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      - KAFKA_BROKER_ID=3
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9094 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src
+      - ./config:/app/config
+    command: python -u -m src.backend.main
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    networks:
+      - kafka-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python -u -m streamlit run src/frontend/app.py
+    depends_on:
+      - backend
+    networks:
+      - kafka-network
+
+networks:
+  kafka-network:
+    driver: bridge 
