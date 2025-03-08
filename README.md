@@ -6,6 +6,7 @@
 - docker-compose up --build -d
 
 host для streamlit
+
 http://localhost:8501
 
 
