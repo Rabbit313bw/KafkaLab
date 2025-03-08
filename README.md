@@ -16,8 +16,11 @@ http://localhost:8501
 
 
 вывод логов kafka
+
 - docker-compose logs -f backend
+
 вывод логов для streamlit
 - docker-compose logs -f frontend
+
 выключение
 - docker-compose down
